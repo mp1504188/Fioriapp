@@ -1,0 +1,752 @@
+sap.ui.define([
+	"sap/ui/core/mvc/Controller",
+	"sap/m/MessageToast",
+	"sap/m/MessageBox",
+	"sap/ui/core/Fragment",
+	"sap/ui/model/json/JSONModel",
+	"sap/m/Token",
+	"sap/m/Dialog",
+	"sap/ui/table/RowAction",
+	"sap/ui/table/RowActionItem",
+	"sap/ui/model/Filter",
+	"sap/ui/model/FilterOperator",
+	"sap/ui/table/library",
+	"sap/ushell/services/UserInfo",
+	// "WBS/C1/WbsC1Request/util/Formatter",
+	"sap/m/Label",
+	"sap/m/TextArea",
+	"sap/ui/core/Item",
+	'sap/ui/core/library'
+	// "WBS/C1/WbsC1Request/util/ErrorFormatter"
+], function (Controller, MessageToast, MessageBox, Fragment, JSONModel, Token, Dialog, RowAction, RowActionItem, Filter, FilterOperator,
+	library, UserInfo, Label, TextArea, Item, Corelibrary) {
+	"use strict";
+	var ValueState = Corelibrary.ValueState;
+	return Controller.extend("chkvoid.yfi_chkvoid_new.controller.View1", {
+
+		onInit: function () {
+			var oView = this.getOwnerComponent();
+			this.getView().setModel(new JSONModel({
+				"chkitem": []
+			}), "localModel");
+			var oViewModel = null;
+			oViewModel = new JSONModel({
+				MreasonTab: "EditTrue",
+				SreasonTab: "EditTrue"
+			});
+			oView.setModel(oViewModel, "appView");
+			// this.getView().byId("idSubTyp").setValue("AP001");
+			this.getView().byId("compCode").setSelectedKey("1372");
+			this.getView().byId("idProjTyp").setSelectedKey("MELL2");
+			this.getView().byId("idSubTyp").setSelectedKey("AP001");
+
+			var that = this;
+			var sValue = "1372";
+			var oModel = this.getView().getModel("oDataModel");
+			oModel.read("/HouseBankSet", {
+				urlParameters: {
+					"$filter": "(Yybukrs eq '" + sValue + "')"
+				},
+				success: function (oData) {
+					var oHBank = new sap.ui.model.json.JSONModel(oData.results);
+					that.getView().setModel(oHBank, "oHBank");
+
+				},
+				error: function (oError) {}
+			});
+
+			var aFilters1 = new sap.ui.model.Filter({
+				filters: [
+					new sap.ui.model.Filter("Yybukrs", sap.ui.model.FilterOperator.EQ, "1372"),
+					new sap.ui.model.Filter("yhbkid", sap.ui.model.FilterOperator.EQ, "MELL2")
+				],
+				and: true
+			});
+
+			oModel.read("/AccountIDSet", {
+				filters: [aFilters1],
+				urlParameters: {},
+				success: function (oData) {
+					var oAccountID = new sap.ui.model.json.JSONModel(oData.results);
+					that.getView().setModel(oAccountID, "oAccountID");
+
+				},
+				error: function (oError) {}
+			});
+		},
+		onMainReason: function (evt) {
+			// var sValue = evt.getParameter("value");
+			var sValue = evt.getSource().getSelectedKey();
+			var oModel = this.getView().getModel("oDataModel");
+			this.getView().byId("sreason").setValue(null);
+			var that = this;
+			var oLocalModel = that.getView().getModel("localModel").getData();
+			var reason = evt.getSource().getValue();
+			var oRevRowIndex = oLocalModel.chkitem.length;
+
+			oModel.read("/SubReasonSet", {
+				urlParameters: {
+					"$filter": "(VoidrM eq '" + sValue + "')"
+				},
+				success: function (oData) {
+					// var oSubReason = new sap.ui.model.json.JSONModel(oData.results);
+					// that.getView().setModel(oSubReason, "oSubReason");
+					var oSubReason = new sap.ui.model.json.JSONModel(oData.results);
+					that.getView().setModel(oSubReason, "oSubReason");
+					if (sValue === "01" || sValue === "02") {
+
+						for (var i = 0; i < oRevRowIndex; i++) {
+							oLocalModel.chkitem[i].Voidrm = reason;
+							oLocalModel.chkitem[i].Voidr = "";
+							that.getView().getModel("localModel").setProperty("/chkitem/" + i + "/oSubReasonTab", oData.results);
+
+							// oLocalModel.chkitem[i].Voidr = oData.results[0].CheckHeadToItem.results[i].Voidr + ' ' + oData.results[0].CheckHeadToItem.results[
+							// 	i].Voidrtxt;
+						}
+						var oViewModel = that.getView().getModel("appView");
+						oViewModel.getData().MreasonTab = "EditFalse";
+						oViewModel.getData().SreasonTab = "EditTrue";
+						that.getView().getModel("appView").refresh(true);
+						that.getView().getModel("localModel").refresh(true);
+					} else {
+						for (var i = 0; i < oRevRowIndex; i++) {
+							oLocalModel.chkitem[i].Voidrm = "";
+							oLocalModel.chkitem[i].Voidr = "";
+							that.getView().getModel("localModel").setProperty("/chkitem/" + i + "/oSubReasonTab", null);
+
+						}
+						var oViewModel = that.getView().getModel("appView");
+						oViewModel.getData().MreasonTab = "EditTrue";
+						oViewModel.getData().SreasonTab = "EditTrue";
+						that.getView().getModel("appView").refresh(true);
+						that.getView().getModel("localModel").refresh(true);
+
+					}
+
+				},
+				error: function (oError) {}
+			});
+
+			// oModel.read("/SubReasonSet", {
+			// 	urlParameters: {
+			// 		"$filter": "(VoidrM eq '" + sValue + "')"
+			// 	},
+			// 	success: function (oData) {
+			// 		var oSubReason = new sap.ui.model.json.JSONModel(oData.results);
+			// 		that.getView().setModel(oSubReason, "oSubReason");
+
+			// 	},
+			// 	error: function (oError) {}
+			// });
+		},
+		onSubReason: function (evt) {
+			// var sValue = evt.getParameter("value");
+			var sValue = evt.getSource().getSelectedKey();
+
+			var oModel = this.getView().getModel("oDataModel");
+			// this.getView().byId("sreason").setValue(null);
+			var mreason = this.getView().byId("mreason").getValue();
+			var mreasonkey = this.getView().byId("mreason").getSelectedKey();
+			var sreason = this.getView().byId("sreason").getValue();
+			var sreasonkey = this.getView().byId("sreason").getSelectedKey();
+
+			var oLocalModel = this.getView().getModel("localModel").getData();
+			var reason = evt.getSource().getValue();
+			var oRevRowIndex = oLocalModel.chkitem.length;
+			var oViewModel = this.getView().getModel("appView");
+			if (mreasonkey === "01" || mreasonkey === "02") {
+				for (var i = 0; i < oRevRowIndex; i++) {
+					oLocalModel.chkitem[i].Voidr = sreason;
+				}
+			}
+			// Can be comment
+			if (sreasonkey == '23' || sreasonkey == '24') {
+				for (var i = 0; i < oRevRowIndex; i++) {
+					oLocalModel.chkitem[i].Voidrm = mreason;
+					oLocalModel.chkitem[i].Voidr = sreason;
+				}
+
+				oViewModel.getData().MreasonTab = "EditFalse";
+				oViewModel.getData().SreasonTab = "EditFalse";
+				// this.getView().getModel("appView").refresh(true);
+				// this.getView().getModel("localModel").refresh(true);
+				sap.m.MessageBox.warning("Has this information been validated with customer?");
+			} else {
+				// end of comment 	
+				if (mreasonkey === "03") {
+					for (var i = 0; i < oRevRowIndex; i++) {
+						oLocalModel.chkitem[i].Voidrm = null;
+						oLocalModel.chkitem[i].Voidr = null;
+					}
+					oViewModel.getData().SreasonTab = "EditTrue";
+					oViewModel.getData().MreasonTab = "EditTrue";
+				} else {
+					var oViewModel = this.getView().getModel("appView");
+					// oViewModel.getData().MreasonTab = "EditTrue";
+					oViewModel.getData().SreasonTab = "EditTrue";
+
+					this.getView().getModel("localModel").refresh(true);
+				}
+			}
+
+			this.getView().getModel("localModel").refresh(true);
+			this.getView().getModel("appView").refresh(true);
+
+		},
+		// 	onMainReasonTab: function (evt) {
+		// 		// var sValue = evt.getParameter("value");
+		// 		// var sValue = evt.getSource().getSelectedKey();
+		// 		// var oModel = this.getView().getModel("oDataModel");
+		// 		// this.getView().byId("sreason").setValue(null);
+		// 		// var that = this;
+
+		// 		// oModel.read("/SubReasonSet", {
+		// 		// 	urlParameters: {
+		// 		// 		"$filter": "(VoidrM eq '" + sValue + "')"
+		// 		// 	},
+		// 		// 	success: function (oData) {
+		// 		// 		var oSubReason = new sap.ui.model.json.JSONModel(oData.results);
+		// 		// 		that.getView().setModel(oSubReason, "oSubReason");
+
+		// 		// 	},
+		// 		// 	error: function (oError) {}
+		// 		// });
+
+		// var oSrc = evt.getSource(),
+		// 			sValue = oSrc.getSelectedKey(),
+		// 			sRow = evt.getSource().getBindingContext("localModel").getPath();
+
+		// 		var modelLength = this.getView().getModel("localModel").getProperty(sRow + "/MainReasonSet");
+		// 		if (sValue === "") {
+
+		// 		} else {
+		// 			// this.getView().getModel("localModel").setProperty(sRow + "/SolTyp", modelLength[0].SolTyp);
+		// 			// this.getView().getModel("localModel").setProperty(sRow + "/ContModl", modelLength[0].ContMdl);
+		// 		}			
+
+		// 	},
+		onInputChangeDeS: function (oEvent) {
+			var str = oEvent.getParameter("value");
+			var sVal = str ? "None" : "Error";
+			oEvent.getSource().setValueState(sVal);
+		},
+
+		handleLiveChange: function (oEvent) {
+			var oTextArea = oEvent.getSource(),
+				iValueLength = oTextArea.getValue().length,
+				iMaxLength = oTextArea.getMaxLength(),
+				sState = iValueLength > iMaxLength ? ValueState.Warning : ValueState.None;
+
+			oTextArea.setValueState(sState);
+		},
+
+		onSpecialCharsCheck: function (evt) {
+			var str = evt.getParameter("value");
+			var sControlId = evt.getParameter("id");
+			var s = "!@#$%^&*()+=-[]\\\';,./{}|\":<>?";
+			for (var i = 0; i < str.length; i++) {
+				if (s.indexOf(str.charAt(i)) !== -1) {
+					sap.ui.getCore().byId(sControlId).setValueState("Error");
+					sap.ui.getCore().byId(sControlId).setValueStateText("Special characters are not allowed");
+				}
+			}
+
+		},
+		onSubmit: function (oEvent) {
+			sap.ui.core.BusyIndicator.show(0);
+			var sTableData = this.getView().getModel("localModel").getData().chkitem;
+			var that = this;
+			var tableData = jQuery.extend(true, [], sTableData);
+			var s = [];
+			var Mandt = "";
+			var CompCode = this.getView().byId("compCode").getSelectedKey();
+			var idProjTyp = this.getView().byId("idProjTyp").getSelectedKey();
+			var idSubTyp = this.getView().byId("idSubTyp").getValue();
+			var chkno = this.getView().byId("chkno").getValue();
+			var mreason = this.getView().byId("mreason").getSelectedKey();
+			if (!mreason) {
+				mreason = this.getView().byId("mreason").getValue().substring(0, 2);
+			}
+			var sreason = this.getView().byId("sreason").getSelectedKey();
+			if (!sreason) {
+				sreason = this.getView().byId("sreason").getValue().substring(0, 2);
+			}
+			var comment = this.getView().byId("comment").getValue();
+
+			if ((!mreason) || (!sreason) || (!comment)) {
+				sap.ui.core.BusyIndicator.hide();
+				sap.m.MessageBox.error("Please fill in all mandatory fields.");
+				// sap.m.MessageToast.show("Please fill the all mandatory fields", {
+				// 	duration: 5000
+				// });
+				return;
+			}
+
+			var Rzawe = this.getView().getModel().getProperty("/chkhead/Rzawe");
+			for (var i = 0; i < tableData.length; i++) {
+				var voidrm1 = null, voidrm2 = null;
+				if (tableData[i].Voidrm) {
+					voidrm1 = tableData[i].Voidrm.substring(0, 2);
+				}
+				if (tableData[i].Voidr) {
+					voidrm2 = tableData[i].Voidr.substring(0, 2);
+				}
+				if ((!voidrm1) || (voidrm1 === "00") || (voidrm2 === "00") || (!voidrm2)) {
+					sap.ui.core.BusyIndicator.hide();
+					sap.m.MessageBox.error("Please fill in all mandatory fields.");
+					// sap.m.MessageToast.show("Please fill the all mandatory fields", {
+					// 	duration: 5000
+					// });
+					return;
+				}
+				var data = {
+					"Mandt": "",
+					"zbukr": tableData[i].Zbukr,
+					"chect": tableData[i].Chect,
+					"vbeln": tableData[i].Vbeln,
+					"bukrs": tableData[i].Bukrs,
+					"belnr": tableData[i].Belnr,
+					"gjahr": tableData[i].Gjahr,
+					"wrbtr": tableData[i].Wrbtr,
+					"waers": tableData[i].Waers,
+					"voidriM": voidrm1,
+					"voidri": voidrm2,
+					"payblkstatus": ""
+
+				};
+				s.push(data);
+			}
+
+			var draftData = {
+				"d": {
+
+					"Mandt": Mandt,
+					"zbukr": CompCode,
+					"hbkid": idProjTyp,
+					"hktid": idSubTyp,
+					"rzawe": Rzawe,
+					"chect": chkno,
+					"voidrM": mreason,
+					"voidr": sreason,
+					"voidreq": "",
+					"bankstatus": "",
+					"prguser": "",
+					// "prgdate": "",
+					// "prgtime": "",
+					"disuser": "",
+					// "disdate": "",
+					// "distime": "",
+					"voidstatus": "",
+					"remarks": comment,
+					"postingstat": "",
+					"CheckVoidISubmitSet": {
+						"results": [{
+
+						}]
+					}
+				}
+			};
+
+			draftData.d.CheckVoidISubmitSet.results = s;
+
+			var oModel = this.getView().getModel("oDataModel");
+			oModel.create("/CheckVoidHSubmitSet", draftData, {
+				//    method: PUT,
+				success: function (oResponse) {
+					sap.ui.core.BusyIndicator.hide();
+					that.getView().byId("SubBtn").setEnabled(false);
+					that.getView().byId("CancelBtn").setEnabled(false);
+					that.getView().byId("S1").setVisible(false);
+					that.getView().byId("reasons").setVisible(false);
+					that.getView().byId("H1").setVisible(false);
+					that.getView().byId("F1").setVisible(false);
+					that.getView().byId("F2").setVisible(true);
+					// var msgText = JSON.parse(oError.responseText).error.message.value;
+					sap.m.MessageBox.success("Check request submitted for void");
+					//, sap.m.MessageBox.Icon.SUCCESS);					
+					// sap.m.MessageToast.show("Check request submitted for void", {
+					// 	duration: 5000
+					// });
+				},
+				error: function (oError, oResponse) {
+					sap.ui.core.BusyIndicator.hide();
+					var msgText = JSON.parse(oError.responseText).error.message.value;
+					sap.m.MessageBox.error(msgText);
+					// , sap.m.MessageBox.Icon.ERROR);					
+					// sap.m.MessageToast.show("System  Error Occurred from the  back end!!!", {
+					// 	duration: 5000
+					// });
+				}
+			});
+		},
+
+		onCancel: function () {
+			sap.ui.core.BusyIndicator.show(0);
+			var oModel = this.getView().getModel("oDataModel");
+			var that = this;
+			var CompCode = this.getView().getModel().getData().chkhead.Bukrs;
+			var HBank = this.getView().byId("idProjTyp").getSelectedItem().getKey();
+			// var HBank = this.getView().getModel().getData().chkhead.HBank;
+			var AcctID = this.getView().getModel().getData().chkhead.AcctID;
+			var ChkNo = this.getView().getModel().getData().chkhead.ChkNo;
+			// var aFilters1 = new sap.ui.model.Filter({
+			// 	filters: [
+			// 		new sap.ui.model.Filter("Zbukr", sap.ui.model.FilterOperator.EQ, CompCode),
+			// 		new sap.ui.model.Filter("Hbkid", sap.ui.model.FilterOperator.EQ, HBank),
+			// 		new sap.ui.model.Filter("Hktid", sap.ui.model.FilterOperator.EQ, AcctID),
+			// 		new sap.ui.model.Filter("Chect", sap.ui.model.FilterOperator.EQ, ChkNo)
+			// 	],
+			// 	and: true
+			// });
+			var zbukrs = CompCode.substring(0, 4);
+			oModel.remove("/CheckVoidHSet(Chect='" + ChkNo + "')", {
+
+				// oModel.remove("/CheckVoidHSet(Chect='" + ChkNo + "' Zbukr='" + zbukrs +  "')", {
+				success: function (oData, oResponse) {
+					sap.ui.core.BusyIndicator.hide();
+
+					that.getView().byId("S1").setVisible(false);
+					that.getView().byId("reasons").setVisible(false);
+					that.getView().byId("H1").setVisible(false);
+					that.getView().byId("F1").setVisible(false);
+					that.getView().byId("F2").setVisible(true);
+					that.getView().byId("SubBtn").setEnabled(false);
+					that.getView().byId("CancelBtn").setEnabled(false);
+					sap.ui.core.BusyIndicator.hide();
+					sap.m.MessageBox.success("Void request cancelled successfully !!!");
+					// sap.m.MessageToast.show("Void request cancelled successfully !!!", {
+					// 	duration: 5000
+					// });
+
+				},
+				error: function (oError, oResponse) {
+					sap.ui.core.BusyIndicator.hide();
+					that.getView().byId("SubBtn").setEnabled(true);
+					that.getView().byId("CancelBtn").setEnabled(true);
+					var msgText = JSON.parse(oError.responseText).error.message.value;
+					sap.m.MessageBox.error(msgText);
+					// sap.m.MessageToast.show("Error in Void request cancellation !!!", {
+					// 	duration: 5000
+					// });
+
+				}
+
+			});
+		},
+
+		dateFormatter: function (sDate) {
+			try {
+				var dateFormat = sap.ui.core.format.DateFormat.getDateInstance({
+					pattern: "yyyy-MM-dd"
+				});
+				if (sDate) {
+					sDate = new Date(sDate);
+					var n = sDate.getTimezoneOffset() / 60;
+					if (Math.sign(n) === -1) {
+						var oDate1 = dateFormat.format(new Date(sDate));
+						var startDateObject = new Date(oDate1);
+						var sFormatDate = startDateObject;
+						return sFormatDate;
+					} else {
+						return sDate;
+					}
+				} else {
+					return null;
+				}
+			} catch (exception) {
+				return sDate;
+			}
+
+		},
+
+		onMainReasonTab: function (evt) {
+			// var sValue = evt.getParameter("value");
+			var sValue = evt.getSource().getSelectedKey();
+			var sRow = evt.getSource().getBindingContext("localModel").getPath();
+			var oModel = this.getView().getModel("oDataModel");
+			//this.getView().byId("sreason").setValue(null);
+			this.getView().getModel("localModel").setProperty(sRow + "/Voidr", "");
+			var that = this;
+
+			oModel.read("/SubReasonSet", {
+				urlParameters: {
+					"$filter": "(VoidrM eq '" + sValue + "')"
+				},
+				success: function (oData) {
+					// var oSubReason = new sap.ui.model.json.JSONModel(oData.results);
+					// that.getView().setModel(oSubReason, "oSubReason");
+					that.getView().getModel("localModel").setProperty(sRow + "/oSubReasonTab", oData.results);
+
+				},
+				error: function (oError) {}
+			});
+		},
+
+		onSubReasonTab: function (evt) {
+			// var sValue = evt.getParameter("value");
+			var sValue = evt.getSource().getSelectedKey();
+
+			var sRow = evt.getSource().getBindingContext("localModel").getPath();
+			var oModel = this.getView().getModel("oDataModel");
+			//this.getView().byId("sreason").setValue(null);
+			this.getView().getModel("localModel").setProperty(sRow + "/Voidr", "");
+			var MainReason = this.getView().getModel("localModel").getProperty(sRow + "/Voidrm");
+			var that = this;
+
+			oModel.read("/SubReasonSet", {
+				urlParameters: {
+					"$filter": "(VoidrM eq '" + MainReason.substring(0, 2) + "')"
+				},
+				success: function (oData) {
+					// var oSubReason = new sap.ui.model.json.JSONModel(oData.results);
+					// that.getView().setModel(oSubReason, "oSubReason");
+					that.getView().getModel("localModel").setProperty(sRow + "/oSubReasonTab", oData.results);
+
+				},
+				error: function (oError) {}
+			});
+		},
+
+		onCompCode: function (evt) {
+			var sValue = evt.getSource().getSelectedKey();
+			var oModel = this.getView().getModel("oDataModel");
+			this.getView().byId("idProjTyp").setValue("");
+			this.getView().byId("idSubTyp").setValue("");
+			this.getView().byId("chkno").setValue("");
+			this.getView().getModel().getData().chkhead.HBank = "";
+			this.getView().getModel().getData().chkhead.AcctID = "";
+
+			var that = this;
+
+			oModel.read("/HouseBankSet", {
+				urlParameters: {
+					"$filter": "(Yybukrs eq '" + sValue + "')"
+				},
+				success: function (oData) {
+					var oHBank = new sap.ui.model.json.JSONModel(oData.results);
+					that.getView().setModel(oHBank, "oHBank");
+
+				},
+				error: function (oError) {}
+			});
+		},
+
+		onHouseBank: function (evt) {
+			var sValue = evt.getSource().getSelectedKey();
+			var CompCode = this.getView().byId("compCode").getSelectedKey();
+			var ProjTyp = this.getView().byId("idProjTyp").getSelectedKey();
+			var oModel = this.getView().getModel("oDataModel");
+			this.getView().byId("idSubTyp").setValue("");
+			this.getView().byId("chkno").setValue("");
+			this.getView().getModel().getData().chkhead.AcctID = "";
+
+			var that = this;
+			if (CompCode) {
+				var aFilters1 = new sap.ui.model.Filter({
+					filters: [
+						new sap.ui.model.Filter("Yybukrs", sap.ui.model.FilterOperator.EQ, CompCode),
+						new sap.ui.model.Filter("yhbkid", sap.ui.model.FilterOperator.EQ, ProjTyp)
+					],
+					and: true
+				});
+
+				oModel.read("/AccountIDSet", {
+					filters: [aFilters1],
+					urlParameters: {},
+					success: function (oData) {
+						var oAccountID = new sap.ui.model.json.JSONModel(oData.results);
+						that.getView().setModel(oAccountID, "oAccountID");
+						that.getView().getModel().getData().chkhead.AcctID = "";
+
+					},
+					error: function (oError) {}
+				});
+			}
+		},
+
+		onSearch: function () {
+			sap.ui.core.BusyIndicator.show(0);
+			var oModel = this.getView().getModel("oDataModel");
+			var that = this;
+			var CompCode = this.getView().getModel().getData().chkhead.Bukrs;
+			var HBank = this.getView().getModel().getData().chkhead.HBank;
+			var AcctID = this.getView().getModel().getData().chkhead.AcctID;
+			var ChkNo = this.getView().getModel().getData().chkhead.ChkNo;
+			// var ChkNo = "3100001479";
+			if ((!CompCode) || (!HBank) || (!AcctID) || (!ChkNo)) {
+				sap.ui.core.BusyIndicator.hide();
+				sap.m.MessageBox.error("Please fill in all mandatory fields.");
+				// sap.m.MessageToast.show("Please fill the all mandatory fields", {
+				// 	duration: 5000
+				// });
+				return;
+			}
+			// var aFilters1 = new sap.ui.model.Filter({
+			// 	filters: [
+			// 		new sap.ui.model.Filter("Zbukr", sap.ui.model.FilterOperator.EQ, CompCode),
+			// 		new sap.ui.model.Filter("Hbkid", sap.ui.model.FilterOperator.EQ, "MELL2"),
+			// 		new sap.ui.model.Filter("Hktid", sap.ui.model.FilterOperator.EQ, "AP001"),
+			// 		new sap.ui.model.Filter("Chect", sap.ui.model.FilterOperator.EQ, "3100001479")
+			// 							// new sap.ui.model.Filter("Chect", sap.ui.model.FilterOperator.EQ, "3100001462")
+			// 			3100001884
+			// 			3100001886
+			// 3100001887
+
+			// 	],
+			// 	and: true
+			// });
+
+			var aFilters1 = new sap.ui.model.Filter({
+				filters: [
+					new sap.ui.model.Filter("Zbukr", sap.ui.model.FilterOperator.EQ, CompCode),
+					new sap.ui.model.Filter("Hbkid", sap.ui.model.FilterOperator.EQ, HBank),
+					new sap.ui.model.Filter("Hktid", sap.ui.model.FilterOperator.EQ, AcctID),
+					new sap.ui.model.Filter("Chect", sap.ui.model.FilterOperator.EQ, ChkNo)
+				],
+				and: true
+			});
+
+			//oModel.read("/CheckVoidHSet('" + ChkNo + "')", {
+
+			oModel.read("/CheckVoidHSet", {
+				filters: [aFilters1],
+				urlParameters: {
+					'$expand': "CheckHeadToItem"
+
+				},
+				success: function (oData, oResponse) {
+					sap.ui.core.BusyIndicator.hide();
+					that.getView().byId("SubBtn").setEnabled(true);
+					that.getView().byId("CancelBtn").setEnabled(true);
+					that.getView().byId("S1").setVisible(true);
+					that.getView().byId("reasons").setVisible(true);
+					that.getView().byId("H1").setVisible(true);
+					that.getView().byId("F1").setVisible(true);
+					that.getView().byId("F2").setVisible(false);
+
+					that.getView().getModel().getData().chkhead.Kunnr = oData.results[0].Custvendor;
+					that.getView().getModel().getData().chkhead.Name = oData.results[0].Name1;
+					that.getView().getModel().getData().chkhead.City = oData.results[0].Zort1;
+					that.getView().getModel().getData().chkhead.Country = oData.results[0].Zland;
+					that.getView().getModel().getData().chkhead.RegCd = oData.results[0].Zregi;
+					that.getView().getModel().setProperty("/chkhead/Kunnr", oData.results[0].Custvendor);
+					that.getView().getModel().setProperty("/chkhead/Paydt", that.dateFormatter(oData.results[0].Paydt));
+					that.getView().getModel().setProperty("/chkhead/Vblnr", oData.results[0].Vblnr);
+					that.getView().getModel().setProperty("/chkhead/Gjahr", oData.results[0].Gjahr);
+					that.getView().getModel().setProperty("/chkhead/Rwbtr", oData.results[0].Rwbtr);
+					that.getView().getModel().setProperty("/chkhead/Rzawe", oData.results[0].Rzawe);
+					if (oData.results[0].Voidrm === "00" || oData.results[0].Voidrm === "") {
+						that.getView().getModel().setProperty("/chkhead/Mreason", "");
+					} else {
+						that.getView().getModel().setProperty("/chkhead/Mreason", oData.results[0].Voidrm + ' ' + oData.results[0].Voidrmtxt);
+						if (oData.results[0].Voidrm === "01" || oData.results[0].Voidrm === "02") {
+							var oViewModel = that.getView().getModel("appView");
+							oViewModel.getData().MreasonTab = "EditFalse";
+							that.getView().getModel("appView").refresh(true);
+							oModel.read("/SubReasonSet", {
+								urlParameters: {
+									"$filter": "(VoidrM eq '" + oData.results[0].Voidrm + "')"
+								},
+								success: function (oData) {
+									// var oSubReason = new sap.ui.model.json.JSONModel(oData.results);
+									// that.getView().setModel(oSubReason, "oSubReason");
+									var oSubReason = new sap.ui.model.json.JSONModel(oData.results);
+									that.getView().setModel(oSubReason, "oSubReason");
+
+									for (var i = 0; i < oRevRowIndex; i++) {
+										that.getView().getModel("localModel").setProperty("/chkitem/" + i + "/oSubReasonTab", oData.results);
+									}
+									that.getView().getModel("localModel").refresh(true);
+
+								},
+								error: function (oError) {}
+							});
+
+						} else {
+							var oViewModel = that.getView().getModel("appView");
+							oViewModel.getData().MreasonTab = "EditTrue";
+							oViewModel.getData().SreasonTab = "EditTrue";
+							// Can be comment							
+							if (oData.results[0].Voidr === "23" || oData.results[0].Voidrm === "24") {
+								oViewModel.getData().SreasonTab = "EditFalse";
+								oViewModel.getData().MreasonTab = "EditFalse";
+							}
+							// end of comment
+							that.getView().getModel("appView").refresh(true);
+							// for (var i = 0; i < oRevRowIndex; i++) {
+							// 	that.getView().getModel("localModel").setProperty("/chkitem/" + i + "/oSubReasonTab", null);
+							// }
+							that.getView().getModel("localModel").refresh(true);
+
+						}
+
+					}
+					if (oData.results[0].Voidr === "00" || oData.results[0].Voidr === "") {
+						that.getView().getModel().setProperty("/chkhead/Sreason", "");
+					} else {
+						that.getView().getModel().setProperty("/chkhead/Sreason", oData.results[0].Voidr + ' ' + oData.results[0].Voidrtxt);
+					}
+
+					that.getView().getModel().setProperty("/chkhead/ReqCom", oData.results[0].Remarks);
+					that.getView().getModel().setProperty("/chkhead/Address", oData.results[0].Address);
+					if (oData.results[0].CheckHeadToItem.results[0].Belnr) {
+						that.getView().getModel("localModel").setProperty("/chkitem", oData.results[0].CheckHeadToItem.results);
+						var oLocalModel = that.getView().getModel("localModel").getData();
+						var oRevRowIndex = oLocalModel.chkitem.length;
+						for (var i = 0; i < oRevRowIndex; i++) {
+							oLocalModel.chkitem[i].Belnr = oData.results[0].CheckHeadToItem.results[i].Belnr;
+
+							var amount = oData.results[0].CheckHeadToItem.results[i].Wrbtr;
+							// var nRevStr = amount.replace(/,/g, '');
+							// var oSplit = nRevStr.split(".");
+							// var wrbtr = nRevStr.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+							var wrbtr = amount;
+							oLocalModel.chkitem[i].Wrbtr = wrbtr.replace(/\s/g, '');
+							oLocalModel.chkitem[i].Vbeln = oData.results[0].CheckHeadToItem.results[i].Vbeln;
+							oLocalModel.chkitem[i].Gjahr = oData.results[0].CheckHeadToItem.results[i].Gjahr;
+							oLocalModel.chkitem[i].Budat = that.dateFormatter(oData.results[0].CheckHeadToItem.results[i].Budat);
+							oLocalModel.chkitem[i].Agrment = oData.results[0].CheckHeadToItem.results[i].Agrment;
+							if (oData.results[0].CheckHeadToItem.results[i].Voidrm === "00") {
+								oLocalModel.chkitem[i].Voidrm = "";
+							} else {
+								oLocalModel.chkitem[i].Voidrm = oData.results[0].CheckHeadToItem.results[i].Voidrm + ' ' + oData.results[0].CheckHeadToItem
+									.results[
+										i].Voidrmtxt;
+							}
+							if (oData.results[0].CheckHeadToItem.results[i].Voidr === "00") {
+								oLocalModel.chkitem[i].Voidr = "";
+							} else {
+								oLocalModel.chkitem[i].Voidr = oData.results[0].CheckHeadToItem.results[i].Voidr + ' ' + oData.results[0].CheckHeadToItem.results[
+									i].Voidrtxt;
+							}
+
+						}
+					}
+					that.getView().getModel("localModel").refresh(true);
+				},
+				error: function (oError, oResponse) {
+					sap.ui.core.BusyIndicator.hide();
+					var msgText = JSON.parse(oError.responseText).error.message.value;
+					sap.m.MessageBox.error(msgText);
+					// sap.m.MessageBox.show(msgText, sap.m.MessageBox.Icon.ERROR);
+					// sap.m.MessageToast.show(msgText, {
+					// 	duration: 5000
+					// });
+
+				}
+
+			});
+		},
+		onLiveChange: function (evt) {
+			this.getView().byId("SubBtn").setEnabled(false);
+			this.getView().byId("CancelBtn").setEnabled(false);
+
+			this.getView().byId("S1").setVisible(false);
+			this.getView().byId("reasons").setVisible(false);
+			this.getView().byId("H1").setVisible(false);
+			this.getView().byId("F1").setVisible(false);
+			this.getView().byId("F2").setVisible(true);
+		},
+
+	});
+});
